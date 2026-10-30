@@ -1,0 +1,36 @@
+name: Send oil digest
+
+# Runs when the digest task pushes a new email file into outbox/.
+# Sends it from GMAIL_USER with the map picture embedded in the email.
+on:
+  push:
+    branches: [main]
+    paths: ["outbox/**.json"]
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Send new digest emails
+        env:
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          DIGEST_TO: filippo.caminati@jpmorgan.com
+        run: |
+          python3 - <<'PY'
+          import json, os, smtplib, subprocess
+          from email.message import EmailMessage
+          from email.utils import make_msgid
+
+          new = subprocess.run(
+              ["git", "diff", "--name-only", "--diff-filter=A", "HEAD~1", "HEAD", "--", "outbox/"],
+              capture_output=True, text=True, check=True).stdout.split()
+          new = [f for f in new if f.endswith(".json")]
+          if not new:
+              print("No new digest files"); raise SystemExit(0)
+
+          user, pw =
